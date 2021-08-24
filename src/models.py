@@ -86,3 +86,12 @@ class KlondikeModel(FoundationModel):
         if len(self.deck) == 0:
             self.deck = self.draw_pile.draw(0)
         self.draw_pile = self.deck.draw(min(3, len(self.deck))) + self.draw_pile
+
+
+class TestModel(GameModel):
+    def __init__(self):
+        super().__init__()
+        self.key_pressed = False
+
+    def is_done(self) -> bool:
+        return False

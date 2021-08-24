@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+import pygame
+from pygame import locals
 import constants
-from models import GameModel
+from models import GameModel, TestModel
 
 
 class Controller:
@@ -35,3 +37,11 @@ class AIController(Controller, ABC):
     @abstractmethod
     def _move(self):
         pass
+
+
+class TestController(PlayerController):
+    def __init__(self, model: TestModel):
+        super().__init__(model)
+
+    def update(self):
+        self._model.key_pressed = pygame.key.get_pressed()[locals.K_w]

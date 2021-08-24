@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from models import GameModel
+from models import GameModel, TestModel
 
 
 class View(ABC):
@@ -9,3 +9,11 @@ class View(ABC):
     @abstractmethod
     def draw(self):
         pass
+
+class TestView(View):
+    def __init__(self, model: TestModel):
+        super().__init__(model)
+
+    def draw(self):
+        if self._model.key_pressed:
+            print("Key pressed")
