@@ -1,20 +1,19 @@
-from abc import ABC, abstractmethod
 import copy
 from typing import Union
 from deck import Card, Pile
 import utils
 
 
-class GameModel(ABC):
+class GameModel:
     def __init__(self):
+        self.running = True
         self.deck = Pile()
 
     def setup(self):
         self.deck = Pile(start_full=True, shuffled=True)
 
-    @abstractmethod
     def is_done(self) -> bool:
-        pass
+        return not self.running
 
     def teardown(self):
         return
@@ -34,8 +33,8 @@ class FoundationModel(GameModel):
     def is_done(self) -> bool:
         for found in self.foundations:
             if len(found) < 13:
-                return False
-        return True
+                self.running = False
+        return super().is_done()
 
     def to_foundation(self, card: Union[Card, Pile], foundation: int) -> bool:
         pile = None
@@ -73,7 +72,7 @@ class KlondikeModel(FoundationModel):
             while self.tableau[dest][0] - card != 1:
                 card_index += 1
                 card = self.tableau[src][card_index]
-            self.tableau[dest] = self.tableau[src].draw(card_index + 1) + self.tableau[dest]
+            self.tableau[dest] = self.tableau[src]._draw(card_index + 1) + self.tableau[dest]
             return True
         return False
 
@@ -84,14 +83,5 @@ class KlondikeModel(FoundationModel):
 
     def deal(self):
         if len(self.deck) == 0:
-            self.deck = self.draw_pile.draw(0)
-        self.draw_pile = self.deck.draw(min(3, len(self.deck))) + self.draw_pile
-
-
-class TestModel(GameModel):
-    def __init__(self):
-        super().__init__()
-        self.key_pressed = False
-
-    def is_done(self) -> bool:
-        return False
+            self.deck = self.draw_pile._draw(0)
+        self.draw_pile = self.deck._draw(min(3, len(self.deck))) + self.draw_pile

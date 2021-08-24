@@ -1,26 +1,21 @@
-from models import TestModel
-from controllers import TestController
-from views import TestView
-import constants
 import pygame
 from pygame import locals
 
+import constants
+from controllers import PlayerController
+from models import GameModel
+from views import PygameView
+
 
 def main():
-    pygame.init()
-    screen = pygame.display.set_mode(constants.SCREEN_SIZE)
-    model = TestModel()
-    controller = TestController(model)
-    view = TestView(model)
+    model = GameModel()
+    controller = PlayerController(model)
+    view = PygameView(model)
 
     clock = pygame.time.Clock()
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == locals.QUIT:
-                running = False
+    while not model.is_done():
         controller.update()
-        view.draw()
+        view.display_game()
         clock.tick(constants.FPS)
 
 
