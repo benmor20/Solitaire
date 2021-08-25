@@ -84,7 +84,8 @@ class PileSprite(pygame.Surface):
         LEFT = (-1, 0)
         RIGHT = (1, 0)
 
-    def __init__(self, pile: Pile, direction: StackDirection, show_hidden: bool = True, max_shown: int = 0):
+    def __init__(self, pile: Pile, direction: StackDirection = StackDirection.DOWN, show_hidden: bool = True,
+                 max_shown: int = 0):
         if max_shown <= 0:
             max_shown = len(pile) + max_shown
         total_show = len(pile) - 1 if show_hidden else pile.get_last_visible_index()
@@ -106,3 +107,33 @@ class PileSprite(pygame.Surface):
             self.blit(CardSprite(self.pile[card_index], self.pile.is_visible(card_index)), pos)
             pos = (pos[0] + constants.NONOVERLAP_DIST * self.direction.value[0],
                    pos[1] + constants.NONOVERLAP_DIST * self.direction.value[1])
+
+
+class KlondikeView(PygameView):
+    def __init__(self, model: KlondikeModel):
+        super().__init__(model)
+
+    def _draw(self):
+        board = pygame.Surface((constants.CARD_SIZE[0] * 7 + constants.CARD_GAP * 6, 500), pygame.SRCALPHA)
+        current_pos = (0, 0)
+        for foundation in self._model.foundations:
+            found_sprite = PileSprite(foundation, max_shown=1)
+            board.blit(found_sprite, found_sprite.get_rect(topleft=current_pos))
+            current_pos = (current_pos[0] + constants.CARD_SIZE[0] + constants.CARD_GAP, current_pos[1])
+
+        current_pos = (current_pos[0] + constants.CARD_SIZE[0] + constants.CARD_GAP, current_pos[1])
+        draw_pile = PileSprite(self._model.draw_pile, max_shown=3)
+        draw_pile_rect = draw_pile.get_rect(topleft=current_pos)
+        board.blit(draw_pile, draw_pile_rect)
+
+        current_pos = (current_pos[0] + constants.CARD_SIZE[0] + constants.CARD_GAP, current_pos[1])
+        deck = PileSprite(self._model.deck, max_shown=1)
+        board.blit(deck, deck.get_rect(topleft=current_pos))
+
+        current_pos = (0, current_pos[1] + constants.CARD_SIZE[1] + constants.CARD_GAP * 2)
+        for tableau in self._model.tableau:
+            sprite = PileSprite(tableau, PileSprite.StackDirection.DOWN)
+            board.blit(sprite, sprite.get_rect(topleft=current_pos))
+            current_pos = (current_pos[0] + constants.CARD_SIZE[0] + constants.CARD_GAP, current_pos[1])
+
+        self._screen.blit(board, board.get_rect(centerx=self._screen.get_rect().centerx, top=100))

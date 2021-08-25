@@ -157,7 +157,7 @@ class Pile:
             return card
         else:
             pile = Pile()
-            self.move_to(pile, num_cards)
+            pile = self.move_to(pile, num_cards)
             return pile
 
     def peek(self, num_cards: int = 1) -> Union[Card, 'Pile']:
@@ -171,13 +171,14 @@ class Pile:
                     pile.make_visible(card)
             return pile
 
-    def move_to(self, pile: 'Pile', num_cards: int = 1):
+    def move_to(self, pile: 'Pile', num_cards: int = 1) -> 'Pile':
         for _ in range(num_cards):
             card = self.peek()
             pile += card
             if 0 in self._visible_cards:
                 pile.make_visible(-1)
             self.draw()
+        return pile
 
     def flip(self, card: int):
         if card < 0:
