@@ -31,9 +31,12 @@ class FoundationModel(GameModel):
             self.foundations.append(Pile())
 
     def is_done(self) -> bool:
+        done = True
         for found in self.foundations:
             if len(found) < 13:
-                self.running = False
+                done = False
+        if done:
+            self.running = False
         return super().is_done()
 
     def to_foundation(self, card: Union[Card, Pile], foundation: int) -> bool:
@@ -62,7 +65,7 @@ class KlondikeModel(FoundationModel):
         self.draw_pile = Pile()
         for tab in range(7):
             self.tableau.append(Pile())
-            self.deck.add_to(self.tableau[tab], tab + 1)
+            self.deck.move_to(self.tableau[tab], tab + 1)
             self.tableau[tab].flip(0)
 
     def move(self, src: int, dest: int) -> bool:

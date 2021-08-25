@@ -29,7 +29,7 @@ def can_stack(card1: Union[Card, Pile], card2: Union[Card, Pile], rank_diff: Uni
         prev_card = None
         for card_index in range(len(card1)):
             card = card1[card_index]
-            if not card1.is_visible(card):
+            if not card1.is_visible(card_index):
                 return False
             if prev_card is not None and not can_stack(prev_card, card, rank_diff, suit_method):
                 return False

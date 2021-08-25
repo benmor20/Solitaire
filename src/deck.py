@@ -6,9 +6,9 @@ from typing import List, Union, Optional
 
 class Suit(Enum):
     SPADES = "♠", True
-    HEARTS = "♡", False
+    HEARTS = "♥", False
     CLUBS = "♣", True
-    DIAMONDS = "♢", False
+    DIAMONDS = "♦", False
 
     def __init__(self, symbol: str, is_black: bool):
         self.symbol = symbol
@@ -131,9 +131,9 @@ class Pile:
                     self._cards.append(Card(suit, rank))
             if shuffled:
                 self.shuffle()
+        self._visible_cards = set()
         if visible:
-            self._visible_cards = set()
-            for card in self._cards:
+            for card in range(len(self._cards)):
                 self._visible_cards.add(card)
         self._aces_high = aces_high
 
@@ -148,11 +148,16 @@ class Pile:
         if num_cards == 1:
             card = self._cards[0]
             self._cards.remove(card)
-            self._visible_cards.remove(card)
+            if 0 in self._visible_cards:
+                self._visible_cards.remove(0)
+            for index in range(1, len(self)):
+                if index in self._visible_cards:
+                    self._visible_cards.remove(index)
+                    self._visible_cards.add(index - 1)
             return card
         else:
             pile = Pile()
-            self.add_to(pile, num_cards)
+            self.move_to(pile, num_cards)
             return pile
 
     def peek(self, num_cards: int = 1) -> Union[Card, 'Pile']:
@@ -166,44 +171,48 @@ class Pile:
                     pile.make_visible(card)
             return pile
 
-    def add_to(self, pile: 'Pile', num_cards: int = 1):
+    def move_to(self, pile: 'Pile', num_cards: int = 1):
         for _ in range(num_cards):
             card = self.peek()
             pile += card
-            if card in self._visible_cards:
-                pile.make_visible(card)
+            if 0 in self._visible_cards:
+                pile.make_visible(-1)
             self.draw()
 
-    def flip(self, card: Union[int, Card]):
-        if isinstance(card, int):
-            card = self._cards[card]
+    def flip(self, card: int):
+        if card < 0:
+            card = len(self) + card
         if card in self._visible_cards:
             self.make_hidden(card)
         else:
             self.make_visible(card)
 
-    def make_visible(self, card: Union[int, Card]):
-        if isinstance(card, int):
-            card = self._cards[card]
+    def make_visible(self, card: int):
+        if card < 0:
+            card = len(self) + card
         self._visible_cards.add(card)
 
-    def make_hidden(self, card: Union[int, Card]):
-        if isinstance(card, int):
-            card = self._cards[card]
+    def make_hidden(self, card: int):
+        if card < 0:
+            card = len(self) + card
         self._visible_cards.remove(card)
 
-    def is_visible(self, card: Union[int, Card]) -> bool:
-        if isinstance(card, int):
-            card = self._cards[card]
+    def is_visible(self, card: int) -> bool:
+        if card < 0:
+            card = len(self) + card
         return card in self._visible_cards
 
-    def get_last_visible(self) -> Optional[Card]:
-        prev_card = None
-        for card in self._cards:
-            if not self.is_visible(card):
+    def get_last_visible_index(self) -> Optional[int]:
+        prev_card_index = None
+        for card_index in range(len(self._cards)):
+            if not self.is_visible(card_index):
                 break
-            prev_card = card
-        return prev_card
+            prev_card_index = card_index
+        return prev_card_index
+
+    def get_last_visible(self) -> Optional[Card]:
+        last_index = self.get_last_visible_index()
+        return None if last_index is None else self[last_index]
 
     def __len__(self) -> int:
         return len(self._cards)
