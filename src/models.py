@@ -57,12 +57,14 @@ class KlondikeModel(FoundationModel):
         super().__init__()
         self.tableau = []
         self.draw_pile = Pile()
+        self.selected = None
         self.setup()
 
     def setup(self):
         super().setup()
         self.tableau = []
         self.draw_pile = Pile()
+        self.selected = None
         for tab in range(7):
             self.tableau.append(Pile())
             self.tableau[tab] = self.deck.move_to(self.tableau[tab], tab + 1)

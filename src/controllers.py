@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
+
 import pygame
 from pygame import locals
+
 import constants
-from models import GameModel
+from models import GameModel, KlondikeModel
+from views import PygameView, KlondikeView
 
 
 class Controller:
@@ -37,3 +40,19 @@ class AIController(Controller, ABC):
     @abstractmethod
     def _move(self):
         pass
+
+
+class PygameController(Controller):
+    def __init__(self, model: GameModel, view: PygameView):
+        super().__init__(model)
+        self._view = view
+
+
+class KlondikeController(PygameController):
+    def __init__(self, model: KlondikeModel, view: KlondikeView):
+        super().__init__(model, view)
+
+    def update(self):
+        if len(pygame.event.get(eventtype=locals.MOUSEBUTTONDOWN)) > 0:
+            pile, type = self._view.get_pile_from_click(pygame.mouse.get_pos())
+            print((pile, type))

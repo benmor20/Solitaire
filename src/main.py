@@ -2,7 +2,7 @@ import pygame
 from pygame import locals
 
 import constants
-from controllers import PlayerController
+from controllers import KlondikeController
 from models import KlondikeModel
 from views import KlondikeView
 
@@ -10,11 +10,9 @@ from views import KlondikeView
 def main():
     model = KlondikeModel()
     model.setup()
-    controller = PlayerController(model)
     view = KlondikeView(model)
     view.setup()
-
-    print(len(model.tableau[1]))
+    controller = KlondikeController(model, view)
 
     clock = pygame.time.Clock()
     while not model.is_done():
