@@ -1,7 +1,7 @@
 import copy
 from enum import Enum
 import random
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Tuple
 
 
 class Suit(Enum):
@@ -66,6 +66,12 @@ class Rank(Enum):
         return self.abbv
 
 
+class StackingMethod(Enum):
+    ALTERNATING = 0,
+    COLOR = 1,
+    SUIT = 2,
+
+
 class Card:
     def __init__(self, suit: Suit, rank: Rank):
         self.suit = suit
@@ -75,10 +81,21 @@ class Card:
     def is_black(self) -> bool:
         return self.suit.is_black
 
-    def __add__(self, other: 'Pile') -> 'Pile':
-        pile = Pile(start_card=self, aces_high=other.aces_high)
-        pile += other
-        return pile
+    def can_stack_on(self, card: Union['Card', 'Pile'], rank_diff: Optional[int],
+                     suit_method: Optional[StackingMethod]) -> bool:
+        if isinstance(card, Pile):
+            if not card.is_visible(0):
+                return False
+            card = card[0]
+        if rank_diff is not None and card - self != rank_diff:
+            return False
+        if suit_method == StackingMethod.ALTERNATING:
+            return self.is_black ^ card.is_black
+        elif suit_method == StackingMethod.COLOR:
+            return self.is_black == card.is_black
+        elif suit_method == StackingMethod.SUIT:
+            return self.suit == card.suit
+        return True
 
     def __sub__(self, other: 'Card') -> int:
         return int(self.rank) - int(other.rank)
@@ -145,12 +162,14 @@ class Pile:
         random.shuffle(self._cards)
 
     def draw(self, num_cards: int = 1) -> Union[Card, 'Pile']:
+        if num_cards < 1:
+            num_cards = len(self) + num_cards
         if num_cards == 1:
             card = self._cards[0]
             self._cards.remove(card)
             if 0 in self._visible_cards:
                 self._visible_cards.remove(0)
-            for index in range(1, len(self)):
+            for index in range(1, len(self) + 1):
                 if index in self._visible_cards:
                     self._visible_cards.remove(index)
                     self._visible_cards.add(index - 1)
@@ -166,18 +185,13 @@ class Pile:
         else:
             pile = Pile()
             for card in range(num_cards):
-                pile += self[card]
-                if self.is_visible(card):
-                    pile.make_visible(card)
+                pile += Pile(self[card], visible=self.is_visible(card))
             return pile
 
     def move_to(self, pile: 'Pile', num_cards: int = 1) -> 'Pile':
         for _ in range(num_cards):
-            card = self.peek()
-            pile += card
-            if 0 in self._visible_cards:
-                pile.make_visible(-1)
-            self.draw()
+            visible = 0 in self._visible_cards
+            pile += Pile(self.draw(), visible=visible)
         return pile
 
     def flip(self, card: int):
@@ -188,15 +202,28 @@ class Pile:
         else:
             self.make_visible(card)
 
+    def flip_all(self):
+        for index in range(len(self)):
+            self.flip(index)
+
     def make_visible(self, card: int):
         if card < 0:
             card = len(self) + card
         self._visible_cards.add(card)
 
+    def make_all_visible(self):
+        for index in range(len(self)):
+            self.make_visible(index)
+
     def make_hidden(self, card: int):
         if card < 0:
             card = len(self) + card
-        self._visible_cards.remove(card)
+        if card in self._visible_cards:
+            self._visible_cards.remove(card)
+
+    def make_all_hidden(self):
+        for index in range(len(self)):
+            self.make_hidden(index)
 
     def is_visible(self, card: int) -> bool:
         if card < 0:
@@ -215,21 +242,62 @@ class Pile:
         last_index = self.get_last_visible_index()
         return None if last_index is None else self[last_index]
 
+    def split_by_visible(self) -> Tuple['Pile', 'Pile']:
+        pile1, pile2 = Pile(aces_high=self.aces_high), Pile(aces_high=self.aces_high)
+        last_vis = self.get_last_visible_index()
+        for index in range(last_vis):
+            pile1 += Pile(self[index], visible=index in self._visible_cards)
+        for index in range(last_vis, len(self)):
+            pile2 += Pile(self[index], visible=index in self._visible_cards)
+        return pile1, pile2
+
+    def split_by_stackable(self, rank_diff: Optional[int], suit_method: Optional[StackingMethod])\
+            -> Tuple['Pile', 'Pile']:
+        pile1, pile2 = Pile(aces_high=self.aces_high), Pile(aces_high=self.aces_high)
+        prev_card: Optional[Card] = None
+        index = 0
+        for index in range(len(self)):
+            card = self[index]
+            if prev_card is None or prev_card.can_stack_on(card, rank_diff, suit_method):
+                pile1 += Pile(card, visible=index in self._visible_cards)
+            else:
+                break
+            prev_card = card
+        for index2 in range(index, len(self)):
+            pile2 += Pile(self[index2], visible=index2 in self._visible_cards)
+        return pile1, pile2
+
+    def can_stack_on(self, card: Union[Card, 'Pile'], rank_diff: Optional[int], suit_method: Optional[StackingMethod])\
+            -> bool:
+        prev_card = None
+        for card_index in range(len(self)):
+            curr_card = self[card_index]
+            if not self.is_visible(card_index):
+                return False
+            if prev_card is not None and not prev_card.can_stack_on(curr_card, rank_diff, suit_method):
+                return False
+            if curr_card.can_stack_on(card, rank_diff, suit_method):
+                return True
+            prev_card = curr_card
+        return False
+
     def __len__(self) -> int:
         return len(self._cards)
 
     def __getitem__(self, item: int) -> Card:
         return self._cards[item]
 
-    def __add__(self, other: Union[Card, 'Pile']) -> 'Pile':
+    def __add__(self, other: 'Pile') -> 'Pile':
         new_pile = Pile(aces_high=self.aces_high)
-        for card in self._cards:
-            new_pile._cards.append(card)
-        if isinstance(other, Card):
-            new_pile._cards.append(other)
+        for index in range(len(self)):
+            new_pile._cards.append(self[index])
+            if self.is_visible(index):
+                new_pile.make_visible(index)
         else:
-            for card in other._cards:
-                new_pile._cards.append(card)
+            for index in range(len(other)):
+                new_pile._cards.append(other[index])
+                if other.is_visible(index):
+                    new_pile.make_visible(index + len(self))
         return new_pile
 
     def __contains__(self, item: Card):
@@ -237,8 +305,8 @@ class Pile:
 
     def __str__(self):
         s = ""
-        for card in self._cards:
-            s += f'{card} '
+        for index in range(len(self._cards)):
+            s += f'{self[index]}{"V" if index in self._visible_cards else "H"} '
         return s[:-1]
 
     def __repr__(self):
@@ -249,6 +317,12 @@ class Pile:
         for vis in self._visible_cards:
             copy.make_visible(vis)
         return copy
+
+    def __reversed__(self) -> 'Pile':
+        rev = Pile(aces_high=self.aces_high)
+        for index in range(len(self)):
+            rev = Pile(self[index], visible=index in self._visible_cards) + rev
+        return rev
 
     def deal_between(self, piles: Union[int, List['Pile']], num_cards: int = None) -> List['Pile']:
         if num_cards is None:

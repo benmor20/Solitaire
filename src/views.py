@@ -46,6 +46,7 @@ class PygameView(View, ABC):
         if len(pygame.event.get(eventtype=locals.QUIT)) > 0:
             self._model.running = False
         self._screen.fill(self._background)
+        self._update_sprites()
         self._draw()
         pygame.display.flip()
 
@@ -130,6 +131,8 @@ class KlondikeView(PygameView):
         self._deck_rect: Optional[pygame.rect.Rect] = None
         self._board = pygame.Surface((constants.CARD_SIZE[0] * 7 + constants.CARD_GAP * 6, 500), pygame.SRCALPHA)
         self._board_rect = self._board.get_rect(midtop=(self._screen.get_rect().centerx, 100))
+        self._selected: Optional[PileSprite] = None
+        self._selected_rect: Optional[pygame.rect.Rect] = None
         self._update_sprites()
 
     def get_pile_from_click(self, click_pos: Tuple[int, int]) -> Optional[Tuple[Pile, str]]:
@@ -153,13 +156,13 @@ class KlondikeView(PygameView):
             self._found_rects[index] = self._foundations[index].get_rect(topleft=current_pos)
             current_pos = (current_pos[0] + constants.CARD_SIZE[0] + constants.CARD_GAP, current_pos[1])
 
-        current_pos = (current_pos[0] + constants.CARD_SIZE[0] + constants.CARD_GAP, current_pos[1])
-        self._draw_pile = PileSprite(self._model.draw_pile, PileSprite.StackDirection.LEFT, max_shown=3)
-        self._draw_rect = self._draw_pile.get_rect(topleft=current_pos)
-
-        current_pos = (current_pos[0] + constants.CARD_SIZE[0] + constants.CARD_GAP, current_pos[1])
+        current_pos = (self._board_rect.width, 0)
         self._deck = PileSprite(self._model.deck, max_shown=1)
-        self._deck_rect = self._deck.get_rect(topleft=current_pos)
+        self._deck_rect = self._deck.get_rect(topright=current_pos)
+
+        current_pos = (current_pos[0] - constants.CARD_SIZE[0] - constants.CARD_GAP, current_pos[1])
+        self._draw_pile = PileSprite(self._model.draw_pile, PileSprite.StackDirection.LEFT, max_shown=3)
+        self._draw_rect = self._draw_pile.get_rect(topright=current_pos)
 
         current_pos = (0, current_pos[1] + constants.CARD_SIZE[1] + constants.CARD_GAP * 2)
         for index in range(len(self._tableau)):
@@ -167,7 +170,15 @@ class KlondikeView(PygameView):
             self._tab_rects[index] = self._tableau[index].get_rect(topleft=current_pos)
             current_pos = (current_pos[0] + constants.CARD_SIZE[0] + constants.CARD_GAP, current_pos[1])
 
+        if self._model.selected is not None:
+            self._selected = PileSprite(self._model.selected, PileSprite.StackDirection.DOWN)
+            self._selected_rect = self._selected.get_rect(midtop=pygame.mouse.get_pos())
+        else:
+            self._selected = None
+            self._selected_rect = None
+
     def _draw(self):
+        self._board.fill((0, 0, 0, 0))
         for index in range(len(self._foundations)):
             self._board.blit(self._foundations[index], self._found_rects[index])
         for index in range(len(self._tableau)):
@@ -175,3 +186,5 @@ class KlondikeView(PygameView):
         self._board.blit(self._draw_pile, self._draw_rect)
         self._board.blit(self._deck, self._deck_rect)
         self._screen.blit(self._board, self._board_rect)
+        if self._selected is not None:
+            self._screen.blit(self._selected, self._selected_rect)

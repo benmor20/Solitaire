@@ -1,7 +1,6 @@
 import copy
-from typing import Union
-from deck import Card, Pile
-import utils
+from typing import Union, List, Optional
+from deck import Card, Pile, StackingMethod
 
 
 class GameModel:
@@ -10,7 +9,7 @@ class GameModel:
         self.deck = Pile()
 
     def setup(self):
-        self.deck = Pile(start_full=True, shuffled=True)
+        self.deck = Pile(start_full=True, shuffled=False)
 
     def is_done(self) -> bool:
         return not self.running
@@ -22,7 +21,7 @@ class GameModel:
 class FoundationModel(GameModel):
     def __init__(self):
         super().__init__()
-        self.foundations = []
+        self.foundations: List[Pile] = []
 
     def setup(self):
         super().setup()
@@ -44,7 +43,7 @@ class FoundationModel(GameModel):
         if isinstance(card, Pile):
             pile = copy.copy(card)
             card = pile.peek()
-        if utils.can_stack(card, self.foundations[foundation], -1, utils.StackingMethod.SUIT):
+        if card.can_stack_on(self.foundations[foundation], -1, StackingMethod.SUIT):
             self.foundations[foundation] = card + self.foundations[foundation]
             if pile is not None:
                 pile.draw()
@@ -55,9 +54,9 @@ class FoundationModel(GameModel):
 class KlondikeModel(FoundationModel):
     def __init__(self):
         super().__init__()
-        self.tableau = []
+        self.tableau: List[Pile] = []
         self.draw_pile = Pile()
-        self.selected = None
+        self.selected: Optional[Pile] = None
         self.setup()
 
     def setup(self):
@@ -71,13 +70,13 @@ class KlondikeModel(FoundationModel):
             self.tableau[tab].flip(0)
 
     def move(self, src: int, dest: int) -> bool:
-        if utils.can_stack(self.tableau[src], self.tableau[dest], 1, utils.StackingMethod.ALTERNATING):
+        if self.tableau[src].can_stack_on(self.tableau[dest], 1, StackingMethod.ALTERNATING):
             card_index = 0
             card = self.tableau[src][card_index]
             while self.tableau[dest][0] - card != 1:
                 card_index += 1
                 card = self.tableau[src][card_index]
-            self.tableau[dest] = self.tableau[src]._draw(card_index + 1) + self.tableau[dest]
+            self.tableau[dest] = self.tableau[src].draw(card_index + 1) + self.tableau[dest]
             return True
         return False
 
@@ -88,5 +87,9 @@ class KlondikeModel(FoundationModel):
 
     def deal(self):
         if len(self.deck) == 0:
-            self.deck = self.draw_pile._draw(0)
-        self.draw_pile = self.deck._draw(min(3, len(self.deck))) + self.draw_pile
+            self.deck = reversed(self.draw_pile.draw(0))
+            self.deck.make_all_hidden()
+        else:
+            drawn = self.deck.draw(min(3, len(self.deck)))
+            drawn.make_all_visible()
+            self.draw_pile = drawn + self.draw_pile

@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
-
 import pygame
 from pygame import locals
+from typing import Optional, Union, Tuple
 
 import constants
 from models import GameModel, KlondikeModel
 from views import PygameView, KlondikeView
+from deck import StackingMethod, Pile
 
 
 class Controller:
@@ -51,8 +52,31 @@ class PygameController(Controller):
 class KlondikeController(PygameController):
     def __init__(self, model: KlondikeModel, view: KlondikeView):
         super().__init__(model, view)
+        self.selected_source: Optional[Union[str, Tuple[str, int]]] = None
 
     def update(self):
         if len(pygame.event.get(eventtype=locals.MOUSEBUTTONDOWN)) > 0:
-            pile, type = self._view.get_pile_from_click(pygame.mouse.get_pos())
-            print((pile, type))
+            click_info = self._view.get_pile_from_click(pygame.mouse.get_pos())
+            if click_info is not None:
+                pile, pile_type = click_info
+                if pile_type == 'tableau':
+                    self._model.selected, remaining = pile.split_by_stackable(1, StackingMethod.ALTERNATING)
+                    for index in range(7):
+                        if pile == self._model.tableau[index]:
+                            self._model.tableau[index] = remaining
+                            break
+                    self.selected_source = pile_type, index
+                elif pile_type == 'draw' and len(self._model.draw_pile) > 0:
+                    self._model.selected = Pile(self._model.draw_pile.draw(), visible=True)
+                    self.selected_source = pile_type
+                elif pile_type == 'deck':
+                    self._model.deal()
+        elif len(pygame.event.get(eventtype=locals.MOUSEBUTTONUP)):
+            if self.selected_source is not None:
+                if isinstance(self.selected_source, tuple):
+                    self._model.tableau[self.selected_source[1]] = self._model.selected\
+                                                                   + self._model.tableau[self.selected_source[1]]
+                elif self.selected_source == 'draw':
+                    self._model.draw_pile = self._model.selected + self._model.draw_pile
+                self._model.selected = None
+                self.selected_source = None
