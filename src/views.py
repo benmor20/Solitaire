@@ -39,7 +39,7 @@ class PygameView(View, ABC):
         return self._screen
 
     @abstractmethod
-    def get_pile_from_click(self, click_pos: Tuple[int, int]) -> Tuple[Pile, str]:
+    def get_pile_from_click(self, click_pos: Tuple[int, int]) -> Optional[Tuple[Pile, str, int]]:
         pass
 
     def display_game(self):
@@ -135,18 +135,18 @@ class KlondikeView(PygameView):
         self._selected_rect: Optional[pygame.rect.Rect] = None
         self._update_sprites()
 
-    def get_pile_from_click(self, click_pos: Tuple[int, int]) -> Optional[Tuple[Pile, str]]:
+    def get_pile_from_click(self, click_pos: Tuple[int, int]) -> Optional[Tuple[Pile, str, int]]:
         adj_pos = (click_pos[0] - self._board_rect.left, click_pos[1] - self._board_rect.top)
         for index in range(len(self._foundations)):
             if self._found_rects[index].collidepoint(adj_pos):
-                return self._model.foundations[index], 'foundation'
+                return self._model.foundations[index], 'foundation', index
         for index in range(len(self._tableau)):
             if self._tab_rects[index].collidepoint(adj_pos):
-                return self._model.tableau[index], 'tableau'
+                return self._model.tableau[index], 'tableau', index
         if self._draw_rect.collidepoint(adj_pos):
-            return self._model.draw_pile, 'draw'
+            return self._model.draw_pile, 'draw', 0
         if self._deck_rect.collidepoint(adj_pos):
-            return self._model.deck, 'deck'
+            return self._model.deck, 'deck', 0
         return None
 
     def _update_sprites(self):

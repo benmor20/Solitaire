@@ -66,10 +66,15 @@ class Rank(Enum):
         return self.abbv
 
 
-class StackingMethod(Enum):
+class SuitStackMethod(Enum):
     ALTERNATING = 0,
     COLOR = 1,
     SUIT = 2,
+
+class StackingMethod:
+    def __init__(self, rank_diff: Optional[int], suit_method: Optional[SuitStackMethod]):
+        self.rank_diff = rank_diff
+        self.suit_method = suit_method
 
 
 class Card:
@@ -81,19 +86,18 @@ class Card:
     def is_black(self) -> bool:
         return self.suit.is_black
 
-    def can_stack_on(self, card: Union['Card', 'Pile'], rank_diff: Optional[int],
-                     suit_method: Optional[StackingMethod]) -> bool:
+    def can_stack_on(self, card: Union['Card', 'Pile'], method: StackingMethod) -> bool:
         if isinstance(card, Pile):
             if not card.is_visible(0):
                 return False
             card = card[0]
-        if rank_diff is not None and card - self != rank_diff:
+        if method.rank_diff is not None and card - self != method.rank_diff:
             return False
-        if suit_method == StackingMethod.ALTERNATING:
+        if method.suit_method == SuitStackMethod.ALTERNATING:
             return self.is_black ^ card.is_black
-        elif suit_method == StackingMethod.COLOR:
+        elif method.suit_method == SuitStackMethod.COLOR:
             return self.is_black == card.is_black
-        elif suit_method == StackingMethod.SUIT:
+        elif method.suit_method == SuitStackMethod.SUIT:
             return self.suit == card.suit
         return True
 
@@ -211,7 +215,7 @@ class Pile:
             card = len(self) + card
         self._visible_cards.add(card)
 
-    def make_all_visible(self):
+    def reveal_all(self):
         for index in range(len(self)):
             self.make_visible(index)
 
@@ -221,7 +225,7 @@ class Pile:
         if card in self._visible_cards:
             self._visible_cards.remove(card)
 
-    def make_all_hidden(self):
+    def hide_all(self):
         for index in range(len(self)):
             self.make_hidden(index)
 
@@ -251,24 +255,24 @@ class Pile:
             pile2 += Pile(self[index], visible=index in self._visible_cards)
         return pile1, pile2
 
-    def split_by_stackable(self, rank_diff: Optional[int], suit_method: Optional[StackingMethod])\
+    def split_by_stackable(self, method: StackingMethod)\
             -> Tuple['Pile', 'Pile']:
         pile1, pile2 = Pile(aces_high=self.aces_high), Pile(aces_high=self.aces_high)
         prev_card: Optional[Card] = None
-        index = 0
+        index = -1
         for index in range(len(self)):
             card = self[index]
-            if prev_card is None or prev_card.can_stack_on(card, rank_diff, suit_method):
+            if prev_card is None or prev_card.can_stack_on(card, method):
                 pile1 += Pile(card, visible=index in self._visible_cards)
             else:
                 break
             prev_card = card
-        for index2 in range(index, len(self)):
-            pile2 += Pile(self[index2], visible=index2 in self._visible_cards)
+        if len(pile1) < len(self):
+            for index2 in range(index, len(self)):
+                pile2 += Pile(self[index2], visible=index2 in self._visible_cards)
         return pile1, pile2
 
-    def can_stack_on(self, card: Union[Card, 'Pile'], rank_diff: Optional[int], suit_method: Optional[StackingMethod])\
-            -> bool:
+    def can_stack_on(self, card: Union[Card, 'Pile'], method: StackingMethod) -> bool:
         prev_card = None
         for card_index in range(len(self)):
             curr_card = self[card_index]
