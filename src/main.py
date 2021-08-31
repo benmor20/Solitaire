@@ -1,10 +1,9 @@
 import pygame
-from pygame import locals
 
-import constants
-from controllers import KlondikeController
-from models import KlondikeModel
-from views import KlondikeView
+from src.utils import constants
+from src.interaction.controllers import KlondikeController
+from src.model.models import KlondikeModel
+from src.interaction.views import KlondikeView
 
 
 def main():

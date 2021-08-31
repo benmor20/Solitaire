@@ -2,12 +2,11 @@ from abc import ABC, abstractmethod
 import pygame
 from pygame import locals
 import time
-from typing import Optional, Union, Tuple
+from typing import Optional
 
-import constants
-from models import GameModel, KlondikeModel
-from views import PygameView, KlondikeView
-from deck import SuitStackMethod, Pile
+import src.utils.constants as constants
+from src.model.models import GameModel, KlondikeModel
+from src.interaction.views import PygameView, KlondikeView
 
 
 class Controller:

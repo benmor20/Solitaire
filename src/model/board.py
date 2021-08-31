@@ -1,6 +1,6 @@
 from typing import *
-from deck import *
-import utils
+from src.model.deck import *
+import src.utils.utils as utils
 
 
 class Foundation:

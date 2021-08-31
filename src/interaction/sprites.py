@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 import pygame
-from typing import *
 
-from board import *
-import constants
-from deck import *
+from src.model.board import *
+import src.utils.constants as constants
+from src.model.deck import *
 
 
 class Sprite(pygame.Surface, ABC):

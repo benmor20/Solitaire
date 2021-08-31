@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import *
 
-from board import *
-from deck import *
-import utils
+from src.model.board import *
+from src.model.deck import *
 
 
 class GameModel(ABC):

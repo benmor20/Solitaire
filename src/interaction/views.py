@@ -1,11 +1,7 @@
-from abc import ABC, abstractmethod
-import pygame
 from pygame import locals
-from typing import *
 
-import constants
-from sprites import *
-from models import GameModel, KlondikeModel
+from src.interaction.sprites import *
+from src.model.models import GameModel, KlondikeModel
 
 
 class View(ABC):
