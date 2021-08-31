@@ -7,7 +7,6 @@ class Foundation:
     def __init__(self, starting_rank: Optional[Rank] = None):
         self._foundations: List[Pile] = []
         self.starting_rank = starting_rank
-        self.setup()
 
     def setup(self):
         self._foundations = []
@@ -20,11 +19,11 @@ class Foundation:
                 return False
         return True
 
-    def add_to(self, card: Card, foundation: int = -1) -> bool:
+    def add_card(self, card: Card, foundation: int = -1) -> bool:
         if foundation == -1:
             empty_index = -1
             for index in range(len(self._foundations)):
-                if len(self._foundations) == 0 and empty_index == -1:
+                if len(self._foundations[index]) == 0 and empty_index == -1:
                     empty_index = index
                 elif len(self._foundations[index]) > 0 and self._foundations[index].peek().suit == card.suit:
                     foundation = index
@@ -39,12 +38,12 @@ class Foundation:
     def pop(self, foundation: int) -> Card:
         return self._foundations[foundation].draw()
 
-    def peel(self, foundation: int) -> Card:
+    def peek(self, foundation: int) -> Card:
         return self._foundations[foundation].peek()
 
 
 class Tableau:
-    def __init__(self, deck: Pile, stacking_method: StackingMethod, pile_lens: Tuple[int, ...],
+    def __init__(self, stacking_method: StackingMethod, pile_lens: Tuple[int, ...],
                  num_visible_on_init: Union[Tuple[int, ...], int] = 1, max_cards_moved: Optional[int] = None):
         self._tableau: List[Pile] = []
         self._num_tableau_piles = len(pile_lens)
@@ -56,43 +55,55 @@ class Tableau:
         elif num_visible_on_init < 0:
             self._num_visible_on_init = utils.add_tuples(pile_lens, num_visible_on_init + 1)
         else:
-            self._num_visible_on_init = tuple([self._num_visible_on_init] * self._num_tableau_piles)
-        self.setup(deck)
+            self._num_visible_on_init = tuple([num_visible_on_init] * self._num_tableau_piles)
 
     @property
-    def num_tableau_piles(self):
+    def num_piles(self) -> int:
         return self._num_tableau_piles
 
     @property
-    def init_pile_lens(self):
+    def init_pile_lens(self) -> Tuple[int, ...]:
         return self._init_pile_lens
+
+    def pile_len(self, pile_index: int) -> int:
+        return len(self._tableau[pile_index])
 
     def update_max_cards_moved(self, max_cards_moved: Optional[int]):
         self._max_cards_moved = max_cards_moved
 
     def setup(self, deck: Pile):
         self._tableau = []
-        for pile in range(self.num_tableau_piles):
-            if len(self._tableau) <= pile:
-                self._tableau.append(Pile())
-            if len(self._tableau[pile]) < self.init_pile_lens[pile]:
-                self._tableau[pile] += deck.draw()
-        for pile in range(self.num_tableau_piles):
-            for card in range(len(self._num_visible_on_init[pile])):
+        added_card = True
+        while added_card:
+            added_card = False
+            for pile in range(self.num_piles):
+                if len(self._tableau) <= pile:
+                    self._tableau.append(Pile())
+                if len(self._tableau[pile]) < self.init_pile_lens[pile]:
+                    self._tableau[pile] = Pile(deck.draw(), visible=False) + self._tableau[pile]
+                    added_card = True
+        for pile in range(self.num_piles):
+            for card in range(self._num_visible_on_init[pile]):
                 self._tableau[pile].make_visible(card)
 
-    def pop(self, pile_index: int) -> Pile:
+    def pop_card(self, pile_index: int) -> Optional[Card]:
+        return self._tableau[pile_index].draw()
+
+    def pop_pile(self, pile_index: int) -> Optional[Pile]:
         ret, self._tableau[pile_index] = self._tableau[pile_index].split_by_stackable(self._stacking_method)
         return ret
 
     def peek(self, pile_index: int) -> Pile:
         return self._tableau[pile_index].split_by_visible()[0]
 
+    def peek_all(self, pile_index: int) -> Pile:
+        return self._tableau[pile_index]
+
     def replace(self, pile: Pile, pile_index: int):
         self._tableau[pile_index] = pile + self._tableau[pile_index]
 
-    def add_to(self, pile: Pile, pile_index: int) -> bool:
-        if pile.can_stack_on(self._tableau[pile_index], self._stacking_method):
+    def add_card(self, pile: Pile, pile_index: int) -> bool:
+        if len(self._tableau[pile_index]) == 0 or pile.can_stack_on(self._tableau[pile_index], self._stacking_method):
             self.replace(pile, pile_index)
             return True
         return False
@@ -110,7 +121,6 @@ class DrawPile:
         self._draw = Pile()
         self._flip_amount = flip_amount
         self._num_visible = flip_amount if num_visible < 0 else num_visible
-        self.setup(deck)
 
     @property
     def flip_amount(self) -> int:
@@ -118,7 +128,11 @@ class DrawPile:
 
     @property
     def num_visible(self) -> int:
-        return self._num_visible
+        return min(len(self._draw), self._num_visible)
+
+    @property
+    def deck_length(self) -> int:
+        return len(self._deck)
 
     def setup(self, deck: Pile):
         self._deck = deck
@@ -128,9 +142,13 @@ class DrawPile:
         self._draw.hide_all()
         if len(self._deck) == 0:
             self._deck = reversed(self._draw)
+            self._draw = Pile()
         else:
-            for _ in range(min(self.flip_amount, len(self._deck))):
-                self._draw = self._deck.draw() + self._draw
+            drawn = self._deck.draw(min(self.flip_amount, len(self._deck)))
+            if isinstance(drawn, Card):
+                drawn = Pile(drawn, visible=True)
+            self._draw = drawn + self._draw
+            self._draw.hide_all()
             for index in range(self.num_visible):
                 self._draw.make_visible(index)
 
@@ -142,7 +160,7 @@ class DrawPile:
             return None
         pile = Pile()
         for index in range(self.num_visible):
-            pile += self._draw[index]
+            pile += Pile(self._draw[index], visible=True)
         return pile
 
     def replace(self, card: Pile):

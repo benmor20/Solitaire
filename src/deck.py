@@ -165,7 +165,9 @@ class Pile:
     def shuffle(self):
         random.shuffle(self._cards)
 
-    def draw(self, num_cards: int = 1) -> Union[Card, 'Pile']:
+    def draw(self, num_cards: int = 1) -> Optional[Union[Card, 'Pile']]:
+        if len(self) == 0:
+            return None
         if num_cards < 1:
             num_cards = len(self) + num_cards
         if num_cards == 1:
@@ -183,7 +185,9 @@ class Pile:
             pile = self.move_to(pile, num_cards)
             return pile
 
-    def peek(self, num_cards: int = 1) -> Union[Card, 'Pile']:
+    def peek(self, num_cards: int = 1) -> Optional[Union[Card, 'Pile']]:
+        if len(self) == 0:
+            return None
         if num_cards == 1:
             return self[0]
         else:
@@ -249,9 +253,10 @@ class Pile:
     def split_by_visible(self) -> Tuple['Pile', 'Pile']:
         pile1, pile2 = Pile(aces_high=self.aces_high), Pile(aces_high=self.aces_high)
         last_vis = self.get_last_visible_index()
-        for index in range(last_vis):
+        last_vis = -1 if last_vis is None else last_vis
+        for index in range(last_vis + 1):
             pile1 += Pile(self[index], visible=index in self._visible_cards)
-        for index in range(last_vis, len(self)):
+        for index in range(last_vis + 1, len(self)):
             pile2 += Pile(self[index], visible=index in self._visible_cards)
         return pile1, pile2
 
@@ -278,9 +283,9 @@ class Pile:
             curr_card = self[card_index]
             if not self.is_visible(card_index):
                 return False
-            if prev_card is not None and not prev_card.can_stack_on(curr_card, rank_diff, suit_method):
+            if prev_card is not None and not prev_card.can_stack_on(curr_card, method):
                 return False
-            if curr_card.can_stack_on(card, rank_diff, suit_method):
+            if curr_card.can_stack_on(card, method):
                 return True
             prev_card = curr_card
         return False
