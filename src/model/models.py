@@ -126,11 +126,15 @@ class KlondikeModel(GameModel):
 
     def on_select(self, pile_type: str, pile_index: int = 0) -> bool:
         if pile_type == 'draw':
+            if self.draw_pile.peek() is None:
+                return False
             if self.foundation.add_card(self.draw_pile.peek()[0]):
                 self.draw_pile.pop()
                 return True
             return False
         elif pile_type == 'tableau':
+            if len(self.tableau.peek(pile_index)) == 0:
+                return False
             if self.foundation.add_card(self.tableau.peek(pile_index)[0]):
                 self.tableau.pop_card(pile_index)
                 self.tableau.show_top_cards()

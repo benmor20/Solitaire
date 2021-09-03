@@ -5,6 +5,7 @@ import time
 from typing import Optional
 
 import src.utils.constants as constants
+from src.model.deck import Pile
 from src.model.models import GameModel, KlondikeModel
 from src.interaction.views import PygameView, KlondikeView
 
@@ -36,10 +37,13 @@ class AIController(Controller, ABC):
     def update(self):
         super().update()
         if self.can_move:
-            self._move()
+            self._last_move_frame = self._current_frame
+            moved = self._move()
+            if not moved:
+                self._model.running = False
 
     @abstractmethod
-    def _move(self):
+    def _move(self) -> bool:
         pass
 
 
@@ -77,3 +81,18 @@ class KlondikeController(PygameController):
                     else:
                         self._model.replace_selected()
                 self._start_click = None
+
+
+class KlondikeAIController(AIController):
+    def __init__(self, model: KlondikeModel, view: KlondikeView):
+        super().__init__(model)
+        self._view = view
+
+    def _move(self):
+        for tab_index in range(7):
+            if self._model.on_select('tableau', tab_index):
+                return True
+        if self._model.on_select('draw', 0):
+            return True
+        self._model.on_select('deck', 0)
+        return True

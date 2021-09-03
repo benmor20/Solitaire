@@ -1,7 +1,7 @@
 import pygame
 
 from src.utils import constants
-from src.interaction.controllers import KlondikeController
+from src.interaction.controllers import KlondikeAIController
 from src.model.models import KlondikeModel
 from src.interaction.views import KlondikeView
 
@@ -11,7 +11,7 @@ def main():
     model.setup()
     view = KlondikeView(model)
     view.setup()
-    controller = KlondikeController(model, view)
+    controller = KlondikeAIController(model, view)
 
     clock = pygame.time.Clock()
     while not model.is_done():
