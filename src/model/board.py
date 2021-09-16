@@ -13,11 +13,17 @@ class Foundation:
         for _ in range(4):
             self._foundations.append(Pile())
 
-    def is_done(self) -> bool:
+    def has_won(self) -> bool:
         for found in self._foundations:
             if len(found) < 13:
                 return False
         return True
+
+    def num_cards(self) -> int:
+        total = 0
+        for found in self._foundations:
+            total += len(found)
+        return total
 
     def add_card(self, card: Card, foundation: int = -1) -> bool:
         if foundation == -1:
@@ -113,6 +119,12 @@ class Tableau:
             for index in range(min(self._num_visible_on_init[tab] if num_to_show is None else num_to_show,
                                    len(self._tableau[tab]))):
                 self._tableau[tab].make_visible(index)
+
+    def __len__(self):
+        return self.num_piles
+
+    def __getitem__(self, item):
+        return self._tableau[item]
 
 
 class DrawPile:

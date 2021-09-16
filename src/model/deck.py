@@ -1,7 +1,7 @@
 import copy
 from enum import Enum
 import random
-from typing import List, Union, Optional, Tuple
+from typing import List, Union, Optional, Tuple, Callable
 
 
 class Suit(Enum):
@@ -71,10 +71,13 @@ class SuitStackMethod(Enum):
     COLOR = 1,
     SUIT = 2,
 
+
 class StackingMethod:
-    def __init__(self, rank_diff: Optional[int], suit_method: Optional[SuitStackMethod]):
+    def __init__(self, rank_diff: Optional[int], suit_method: Optional[SuitStackMethod],
+                 stack_on_blank: Union[bool, Callable[['Card'], bool]] = False):
         self.rank_diff = rank_diff
         self.suit_method = suit_method
+        self.stack_on_blank = (lambda c: stack_on_blank) if isinstance(stack_on_blank, bool) else stack_on_blank
 
 
 class Card:
@@ -87,6 +90,8 @@ class Card:
         return self.suit.is_black
 
     def can_stack_on(self, card: Union['Card', 'Pile'], method: StackingMethod) -> bool:
+        if card is None or (isinstance(card, Pile) and len(card) == 0):
+            return method.stack_on_blank(self)
         if isinstance(card, Pile):
             if not card.is_visible(0):
                 return False

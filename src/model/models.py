@@ -31,6 +31,10 @@ class GameModel(ABC):
     def on_select(self, pile_type: str, pile_index: int = 0):
         pass
 
+    @abstractmethod
+    def has_won(self) -> bool:
+        pass
+
     def is_done(self) -> bool:
         return not self.running
 
@@ -40,7 +44,7 @@ class GameModel(ABC):
 
 class KlondikeModel(GameModel):
     def __init__(self):
-        super().__init__(StackingMethod(1, SuitStackMethod.ALTERNATING))
+        super().__init__(StackingMethod(1, SuitStackMethod.ALTERNATING, stack_on_blank=lambda c: c.rank == Rank.KING))
         self.foundation = Foundation(Rank.ACE_LOW)
         self.tableau = Tableau(self.stacking_method, (1, 2, 3, 4, 5, 6, 7))
         self.draw_pile = DrawPile(self.deck)
@@ -94,11 +98,13 @@ class KlondikeModel(GameModel):
         if pile_type == 'draw':
             success = False
         elif pile_type == 'tableau':
-            if self.selected[0].can_stack_on(self.tableau.peek(pile_index), self.stacking_method):
+            tab_pile = self.tableau.peek(pile_index)
+            if self.selected[0].can_stack_on(tab_pile, self.stacking_method):
                 card = -1
-                for card in range(len(self.selected[0])):
-                    if self.tableau.peek(pile_index)[0] - self.selected[0][card] == 1:
-                        break
+                if len(tab_pile) > 0:
+                    for card in range(len(self.selected[0])):
+                        if self.tableau.peek(pile_index)[0] - self.selected[0][card] == 1:
+                            break
                 drawn = self.selected[0].draw(card + 1)
                 if isinstance(drawn, Card):
                     drawn = Pile(drawn, visible=True)
@@ -147,3 +153,6 @@ class KlondikeModel(GameModel):
             return False
         else:
             raise ValueError(f'Unrecognized pile type: {pile_type}')
+
+    def has_won(self) -> bool:
+        return self.foundation.has_won()
