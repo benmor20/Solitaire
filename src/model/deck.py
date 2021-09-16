@@ -272,6 +272,8 @@ class Pile:
         index = -1
         for index in range(len(self)):
             card = self[index]
+            if not self.is_visible(index):
+                break
             if prev_card is None or prev_card.can_stack_on(card, method):
                 pile1 += Pile(card, visible=index in self._visible_cards)
             else:
