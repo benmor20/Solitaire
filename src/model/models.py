@@ -9,8 +9,12 @@ class GameModel(ABC):
     def __init__(self, stacking_method: Optional[StackingMethod] = None):
         self.running = True
         self.deck = Pile()
-        self.selected: Optional[Tuple[Pile, str, int]] = None
+        self._selected: Optional[Tuple[Pile, str, int]] = None
         self.stacking_method = stacking_method
+
+    @property
+    def selected(self) -> Optional[Tuple[Pile, str, int]]:
+        return self._selected
 
     def setup(self):
         self.deck = Pile(start_full=True, shuffled=True)
@@ -24,11 +28,11 @@ class GameModel(ABC):
         pass
 
     @abstractmethod
-    def set_down_on(self, pile_type, pile_index) -> bool:
+    def set_down_on(self, pile_type: str, pile_index: int = 0) -> bool:
         pass
 
     @abstractmethod
-    def on_select(self, pile_type: str, pile_index: int = 0):
+    def on_select(self, pile_type: str, pile_index: int = 0) -> bool:
         pass
 
     @abstractmethod
@@ -139,9 +143,10 @@ class KlondikeModel(GameModel):
                 return True
             return False
         elif pile_type == 'tableau':
-            if len(self.tableau.peek(pile_index)) == 0:
+            top_card = self.tableau.peek_card(pile_index)
+            if top_card is None:
                 return False
-            if self.foundation.add_card(self.tableau.peek(pile_index)[0]):
+            if self.foundation.add_card(top_card):
                 self.tableau.pop_card(pile_index)
                 self.tableau.show_top_cards()
                 return True
@@ -153,6 +158,72 @@ class KlondikeModel(GameModel):
             return False
         else:
             raise ValueError(f'Unrecognized pile type: {pile_type}')
+
+    def has_won(self) -> bool:
+        return self.foundation.has_won()
+
+
+class LaBelleLucieModel(GameModel):
+    def __init__(self):
+        super().__init__(StackingMethod(1, SuitStackMethod.SUIT, stack_on_blank=False))
+        self.foundation = Foundation(Rank.ACE_LOW)
+        self.tableau = Tableau(self.stacking_method, tuple([3] * 17 + [1]))
+        self.setup()
+
+    def on_select(self, pile_type: str, pile_index: int = 0) -> bool:
+        if pile_type == 'tableau':
+            top_card = self.tableau.peek_card(pile_index)
+            if top_card is None:
+                return False
+            if self.foundation.add_card(top_card):
+                self.tableau.pop_card(pile_index)
+                self.tableau.show_top_cards()
+                return True
+            return False
+        elif pile_type == 'foundation':
+            return False
+        else:
+            raise ValueError(f'Unknown pile type: {pile_type}')
+
+    def pickup(self, pile_type: str, pile_index: int = 0) -> bool:
+        if pile_type == 'tableau':
+            if len(self.tableau[pile_index]) == 0:
+                return False
+            self._selected = (Pile(self.tableau.pop_card(pile_index)), 'tableau', pile_index)
+            return True
+        elif pile_type == 'foundation':
+            if len(self.foundation[pile_index]) == 0:
+                return False
+            self._selected = (Pile(self.foundation.peek(pile_index)), 'foundation', pile_index)
+            return True
+        else:
+            raise ValueError(f'Unknown pile type: {pile_type}')
+
+    def replace_selected(self) -> bool:
+        if self.selected is None:
+            return False
+        if self.selected[1] == 'tableau':
+            self.tableau.replace(self.selected[0], self.selected[2])
+        elif self.selected[1] == 'foundation':
+            self.foundation.add_card(self.selected[0][0], self.selected[2])
+        self._selected = None
+        return True
+
+    def set_down_on(self, pile_type: str, pile_index: int = 0) -> bool:
+        if self.selected is None:
+            return False
+        success = False
+        if pile_type == 'tableau':
+            if self.selected[0].can_stack_on(self.tableau[pile_index], self.stacking_method):
+                self.tableau.add_card(self.selected[0], pile_index)
+                success = True
+        elif pile_type == 'foundation':
+            success = self.foundation.add_card(self.selected[0][0], pile_index)
+        if success:
+            self._selected = None
+        else:
+            self.replace_selected()
+        return success
 
     def has_won(self) -> bool:
         return self.foundation.has_won()

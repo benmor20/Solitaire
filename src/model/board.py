@@ -99,6 +99,10 @@ class Tableau:
         ret, self._tableau[pile_index] = self._tableau[pile_index].split_by_stackable(self._stacking_method)
         return ret
 
+    def peek_card(self, pile_index: int) -> Optional[Card]:
+        vis = self.peek(pile_index)
+        return None if len(vis) == 0 else vis[0]
+
     def peek(self, pile_index: int) -> Pile:
         return self._tableau[pile_index].split_by_visible()[0]
 
