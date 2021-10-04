@@ -55,11 +55,6 @@ class PygameController(Controller):
     def __init__(self, model: GameModel, view: PygameView):
         super().__init__(model)
         self._view = view
-
-
-class KlondikeController(PygameController):
-    def __init__(self, model: KlondikeModel, view: KlondikeView):
-        super().__init__(model, view)
         self._start_click: Optional[int] = None
 
     def update(self):
@@ -72,8 +67,8 @@ class KlondikeController(PygameController):
         elif len(pygame.event.get(eventtype=locals.MOUSEBUTTONUP)):
             if self._start_click is not None:
                 if self._model.selected is None:  # This means pickup failed and therefore the user selected the deck
-                    self._model.on_select('deck', 0)
-                elif time.time() - self._start_click < 0.2:
+                    self._model.on_select('draw', 1)
+                elif time.time() - self._start_click < constants.SELECT_TIME:
                     _, pile_type, pile_index = self._model.selected
                     self._model.replace_selected()
                     self._model.on_select(pile_type, pile_index)
@@ -127,5 +122,5 @@ class KlondikeAIController(AIController):
                 print('No more moves')
                 return False
             self._num_reshuffle_since_last_move += 1
-        self._model.on_select('deck', 0)
+        self._model.on_select('draw', 1)
         return True

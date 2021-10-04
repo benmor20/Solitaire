@@ -12,6 +12,7 @@ class Sprite(pygame.Surface, ABC):
             super().__init__(size, pygame.SRCALPHA)
         else:
             super().__init__(size)
+        self.rect = self.get_rect()
 
     @abstractmethod
     def draw(self):
@@ -34,9 +35,11 @@ class CardSprite(Sprite):
             large_text = constants.LARGE_TEXT.render(text, True, color)
             small_text = constants.SMALL_TEXT.render(text, True, color)
             small_text_rot = pygame.transform.rotate(small_text, 180)
-            self.blit(large_text, large_text.get_rect(centerx=self._rect.centerx - 3, centery=self._rect.centery - 3))
-            self.blit(small_text, small_text.get_rect(topleft=(0, 0)))
-            self.blit(small_text_rot, small_text_rot.get_rect(bottomright=self._rect.bottomright))
+            self.blit(large_text, large_text.get_rect(center=self._rect.center))
+            small_offset = (3, 0)
+            self.blit(small_text, small_text.get_rect(topleft=small_offset))
+            self.blit(small_text_rot, small_text_rot.get_rect(bottomright=utils.subtract_tuples(self._rect.bottomright,
+                                                                                                small_offset)))
         else:
             pygame.draw.rect(self, constants.CARD_BACK, (5, 5, constants.CARD_SIZE[0] - 10,
                                                          constants.CARD_SIZE[1] - 10),
@@ -58,8 +61,8 @@ class PileSprite(Sprite):
         total_show = len(pile) - 1 if show_hidden else pile.get_last_visible_index()
         total_show = 0 if total_show is None else total_show
         num_cards_shown = min(total_show + 1, max_shown)
-        x_size = constants.CARD_SIZE[0] + abs(direction.value[0]) * (num_cards_shown - 1) * constants.NONOVERLAP_DIST
-        y_size = constants.CARD_SIZE[1] + abs(direction.value[1]) * (num_cards_shown - 1) * constants.NONOVERLAP_DIST
+        x_size = constants.CARD_SIZE[0] + abs(direction.value[0]) * (num_cards_shown - 1) * constants.NONOVERLAP_HORZ
+        y_size = constants.CARD_SIZE[1] + abs(direction.value[1]) * (num_cards_shown - 1) * constants.NONOVERLAP_VERT
         super().__init__((x_size, y_size))
         self._pile = pile
         self._direction = direction
@@ -72,15 +75,15 @@ class PileSprite(Sprite):
             (self.get_size()[0] - constants.CARD_SIZE[0], self.get_size()[1] - constants.CARD_SIZE[1])
         for card_index in range(self._num_cards_shown - 1, -1, -1):
             self.blit(CardSprite(self._pile[card_index], self._pile.is_visible(card_index)), pos)
-            pos = (pos[0] + constants.NONOVERLAP_DIST * self._direction.value[0],
-                   pos[1] + constants.NONOVERLAP_DIST * self._direction.value[1])
+            pos = (pos[0] + constants.NONOVERLAP_VERT * self._direction.value[0],
+                   pos[1] + constants.NONOVERLAP_VERT * self._direction.value[1])
 
 
 class MultiPileSprite(Sprite, ABC):
     def __init__(self, size: Tuple[int, int]):
         super().__init__(size)
-        self._piles: List[PileSprite] = []
-        self._pile_rects: List[pygame.rect.Rect] = []
+        self._piles: List[Optional[PileSprite]] = []
+        self._pile_rects: List[Optional[pygame.rect.Rect]] = []
         self.draw()
 
     @abstractmethod
@@ -94,8 +97,8 @@ class MultiPileSprite(Sprite, ABC):
             self.blit(self._piles[index], self._pile_rects[index])
 
     def pile_index_from_pos(self, click_pos) -> Optional[int]:
-        for index in range(len(self._pile_rects)):
-            if self._pile_rects[index].collidepoint(click_pos):
+        for index, rect in enumerate(self._pile_rects):
+            if rect.collidepoint(click_pos):
                 return index
         return None
 
@@ -117,22 +120,33 @@ class FoundationSprite(MultiPileSprite):
 
 
 class TableauSprite(MultiPileSprite):
-    def __init__(self, tableau: Tableau):
+    def __init__(self, tableau: Tableau, size: Tuple[int, int], locations: List[Tuple[int, int]] = None,
+                 stack_direction: PileSprite.StackDirection = PileSprite.StackDirection.DOWN):
+        if locations is not None and len(tableau) != len(locations):
+            raise ValueError(f'Tableau has {len(tableau)} piles but locations has {len(locations)} spaces given.')
         self._tableau = tableau
-        super().__init__((constants.CARD_SIZE[0] * tableau.num_piles + constants.CARD_GAP * (tableau.num_piles - 1),
-                          500))
+        self._locations = locations
+        self._stack_direction = stack_direction
+        if locations is None:
+            location = (0, 0)
+            loc_step = (constants.CARD_SIZE[0] + constants.CARD_GAP, 0) if stack_direction.value[0] == 0 else\
+                (0, constants.CARD_SIZE[1] + constants.CARD_GAP)
+            self._locations = [location]
+            for i in range(1, len(tableau)):
+                location = utils.add_tuples(location, loc_step)
+                self._locations.append(location)
+        else:
+            self._locations = locations
+        super().__init__(size)
 
     def _update_sprites(self):
-        # print(f'updating tableau')
         while len(self._piles) < self._tableau.num_piles:
             self._piles.append(None)
             self._pile_rects.append(None)
         pos = 0
         for index in range(self._tableau.num_piles):
-            # print(f'Length of tableau {index} is {self._tableau.pile_len(index)}')
-            self._piles[index] = PileSprite(self._tableau.peek_all(index))
-            self._pile_rects[index] = self._piles[index].get_rect(topleft = (pos, 0))
-            pos += constants.CARD_SIZE[0] + constants.CARD_GAP
+            self._piles[index] = PileSprite(self._tableau.peek_all(index), self._stack_direction)
+            self._pile_rects[index] = self._piles[index].get_rect(topleft=self._locations[index])
 
 
 class DrawPileSprite(MultiPileSprite):

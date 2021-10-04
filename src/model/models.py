@@ -40,7 +40,7 @@ class GameModel(ABC):
         pass
 
     def is_done(self) -> bool:
-        return not self.running
+        return not self.running or self.has_won()
 
     def teardown(self):
         return
@@ -65,15 +65,16 @@ class KlondikeModel(GameModel):
             return False
         pickup = None
         if pile_type == 'draw':
-            pickup = Pile(self.draw_pile.pop(), visible=True)
+            if pile_index == 0:
+                pickup = Pile(self.draw_pile.pop(), visible=True)
         elif pile_type == 'tableau':
             pickup = self.tableau.pop_pile(pile_index)
         elif pile_type == 'foundation':
             pickup = Pile(self.foundation.pop(pile_index), visible=True)
-        elif pile_type != 'deck':
+        else:
             raise ValueError(f'Unrecognized pile type: {pile_type}')
         if pickup is not None:
-            self.selected = pickup, pile_type, pile_index
+            self._selected = pickup, pile_type, pile_index
             return True
         return False
 
@@ -93,10 +94,10 @@ class KlondikeModel(GameModel):
             else:
                 self.foundation.add_card(self.selected[0][0], self.selected[2])
                 change = True
-        self.selected = None
+        self._selected = None
         return change
 
-    def set_down_on(self, pile_type, pile_index) -> bool:
+    def set_down_on(self, pile_type: str, pile_index: int = 0) -> bool:
         if self.selected is None:
             return False
         if pile_type == 'draw':
@@ -128,7 +129,7 @@ class KlondikeModel(GameModel):
                 success = True
             else:
                 success = False
-        elif pile_type != 'deck':
+        else:
             raise ValueError(f'Unknown pile type: {pile_type}')
         self.replace_selected()
         self.tableau.show_top_cards()
@@ -136,10 +137,14 @@ class KlondikeModel(GameModel):
 
     def on_select(self, pile_type: str, pile_index: int = 0) -> bool:
         if pile_type == 'draw':
-            if self.draw_pile.peek() is None:
-                return False
-            if self.foundation.add_card(self.draw_pile.peek()[0]):
-                self.draw_pile.pop()
+            if pile_index == 0:
+                if self.draw_pile.peek() is None:
+                    return False
+                if self.foundation.add_card(self.draw_pile.peek()[0]):
+                    self.draw_pile.pop()
+                    return True
+            elif pile_index == 1:
+                self.draw_pile.deal()
                 return True
             return False
         elif pile_type == 'tableau':
@@ -151,9 +156,6 @@ class KlondikeModel(GameModel):
                 self.tableau.show_top_cards()
                 return True
             return False
-        elif pile_type == 'deck':
-            self.draw_pile.deal()
-            return True
         elif pile_type == 'foundation':
             return False
         else:
@@ -167,8 +169,13 @@ class LaBelleLucieModel(GameModel):
     def __init__(self):
         super().__init__(StackingMethod(1, SuitStackMethod.SUIT, stack_on_blank=False))
         self.foundation = Foundation(Rank.ACE_LOW)
-        self.tableau = Tableau(self.stacking_method, tuple([3] * 17 + [1]))
+        self.tableau = Tableau(self.stacking_method, tuple([3] * 17 + [1]), num_visible_on_init=3)
         self.setup()
+
+    def setup(self):
+        super().setup()
+        self.foundation.setup()
+        self.tableau.setup(self.deck)
 
     def on_select(self, pile_type: str, pile_index: int = 0) -> bool:
         if pile_type == 'tableau':
@@ -189,12 +196,12 @@ class LaBelleLucieModel(GameModel):
         if pile_type == 'tableau':
             if len(self.tableau[pile_index]) == 0:
                 return False
-            self._selected = (Pile(self.tableau.pop_card(pile_index)), 'tableau', pile_index)
+            self._selected = (Pile(self.tableau.pop_card(pile_index), visible=True), 'tableau', pile_index)
             return True
         elif pile_type == 'foundation':
             if len(self.foundation[pile_index]) == 0:
                 return False
-            self._selected = (Pile(self.foundation.peek(pile_index)), 'foundation', pile_index)
+            self._selected = (Pile(self.foundation.peek(pile_index), visible=True), 'foundation', pile_index)
             return True
         else:
             raise ValueError(f'Unknown pile type: {pile_type}')
